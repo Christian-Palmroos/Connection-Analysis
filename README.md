@@ -2,9 +2,10 @@
 
 README:
 
-This program is used for analysing magnetic connection between interplanetary 
-plasma shocks and Earth's bow shock.
-Original Matlab code by Dr. Heli Hietala
+This program analyses potential magnetic connectivity of coronal mass ejection -driven
+interplanetary plasma shocks and Earth's bow shock. 
+
+Based on a MatLab implementation by Dr. Heli Hietala.
 
 Required data for succesful analysis:
 -Magnetometric data
@@ -14,6 +15,8 @@ Required data for succesful analysis:
 
 Note that the instructions provided here may not work for you if you are
 not using Linux.
+
+THESE INSTRUCTIONS ARE DEPRECATED. I will update them in the near future.
 
 #===============================================================================
 
@@ -42,7 +45,7 @@ For output format, check that these conditions apply: Date=yy/mm/dd,
 time=hh:mm, Distance=Earth Radii, Degree's Format=-dd.ddd... to 2 decimals, 
 Direction/Range=Lat(-90,+90),Long(0,360), Output Format=CDF. Save the .cdf file.
 
-2) Preparing the program:
+2) Preparing the program: (DEPRECATED)
 
 Now you should have three separate datafiles: positional data in .cdf
 format, and magnetometric data and plasma data in .txt format. Make sure that

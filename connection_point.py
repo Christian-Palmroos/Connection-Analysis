@@ -7,21 +7,8 @@ interplanetary plasma shocks and Earth's bow shock.
 Based on a MatLab implementation by Dr. Heli Hietala.
 
 @Author: Christian Palmroos    <chospa@utu.fi>
-Last updated: 23.01.2020
+Last updated: 2020-02-07
 
-Potential names for this program:
-
-Analyzer of Potential Magnetic connections between Interplanetary Plasma shocks and Earth's Bow Shock
-APMIPEWS
-
-Magnetic Connections Data Analysis
-MaCoDA
-
-Plasma Shock Connectivity Analysis
-PSCA
-
-Plasma Shock Analysis: Magnetic Connectivity
-PSAMC
 '''
 
 import numpy as np
@@ -329,7 +316,7 @@ def connection(R,B,P):
     print("Magnetic connection analysis commencing... \n")
 
     #Initialize:
-    tn = 100 #len(B['date_time'])
+    tn = len(B['date_time'])
     l_hit = np.zeros((tn,1))
     f_min = np.zeros((tn,1))
     r_bs = np.zeros((tn,3))
@@ -441,7 +428,7 @@ def connection(R,B,P):
         r_bs[i]  = r[l_closest]
         l_hit[i] = l_closest
 
-        #Calculate the shock normal at r_bs: NOT WORKING AS OF NOW!!
+        #Calculate the shock normal at r_bs:
         bs_normal[i] = merka05_normal(n_bs,V_bs,B_bs,r_bs[i])
 
         #Save the moments of time in B_moments:
@@ -816,6 +803,8 @@ def offset_correction(dataframe, date_correction):
     dataframe with corrected Bz-component   
     '''
 
+    print("Performing Geotail's Bz offset correction...")
+
     r, c = date_correction.shape
 
     for i in range(c):
@@ -840,6 +829,7 @@ def offset_correction(dataframe, date_correction):
             except KeyError:
                 continue
 
+    print("Bz offset corrected!")
     
     return dataframe
 
@@ -864,8 +854,6 @@ if __name__ == "__main__":
     
     #R must be read in .cdf format. readcdfdata() handles it into a pd dataframe
     #B and P are probably easiest read as txt to pd dataframes.
-
-    print("Reading parameters...")
 
     all_lines = param_file.readlines()
     params = np.zeros(8,dtype=object)
@@ -896,8 +884,13 @@ if __name__ == "__main__":
     Rx = float(params[4].split()[1])
 
     R_file = str(params[5].split()[1])
+
     B_file = str(params[6].split()[1])
+    B_firstline = int(params[6].split()[2])
+
     P_file = str(params[7].split()[1])
+    P_firstline = int(params[7].split()[2])
+
     #---------------------------------
 
     #Close the file when finished with reading the parameters
@@ -905,7 +898,32 @@ if __name__ == "__main__":
 
     #=======================================================================================================
 
+
+    #====Confirmation of parameters=========================================================================    
+
+    print("You are attempting magnetic connectivity analysis with given parameters:")
+    print("------------------------------------------------------------------------")
+    print("sc_name:             ", sc_name)
+    print("shock_crossing_time: ", shock_crossing_time)
+    print("V_c:                 ", V_c, " km/s")
+    print("cadence:             ", cadence, " s")
+    print("Rx:                  ", Rx, " Re")
+    print("R_file:              ", R_file)
+    print("B_file:              ", B_file, " starting at line ", B_firstline)
+    print("P_file:              ", P_file, " starting at line ", P_firstline)
+    print("------------------------------------------------------------------------")
+
+    confirmation = str(input("Is this correct? (Y/n) "))
+
+    if(confirmation == 'Y' or confirmation == 'y' or confirmation == ''):
+        pass
+
+    else:
+        raise Exception("Check analysis_params.txt!")
+
+    #=======================================================================================================
     
+
     #====POSITIONAL DATA IS READ FROM A .CDF FILE===========================================================
     
     print("Reading data...")
@@ -931,31 +949,19 @@ if __name__ == "__main__":
 
     #====HERE WE READ MAGNETOMETRIC AND PLASMA DATA=========================================================
 
-    if( sc_name == "Ace" ):
+    if( sc_name != "Geotail" ):
 
-        #Ace's magnetometric data comes with 16 second cadence
+        B = pd.read_csv(B_file, skiprows=B_firstline, skipfooter=4, parse_dates=[['date','time']], names=['date','time','Bmag','Bx','By','Bz'],delimiter=r"\s+",dayfirst=True,engine='python')
 
-        B = pd.read_csv(B_file, skiprows=62, skipfooter=4, parse_dates=[['date','time']], names=['date','time','Bmag','Bx','By','Bz'],delimiter=r"\s+",dayfirst=True,engine='python')
-    
-        dt = 165 #dt is not in seconds, but in rows.
+        dt_in_seconds = np.round((Rx * 6370 )/ V_c, 0) # change Rx to km
 
-    #----------------------------------------------------------------------------------------------------
-
-    elif( sc_name == "Wind" ):
-
-        #Wind's magnetometric data comes with 60 second cadence
-
-        B = pd.read_csv(B_file, skiprows=105, skipfooter=4, parse_dates=[['date','time']], names=['date','time','Bmag','Bx','By','Bz'],delimiter=r"\s+",dayfirst=True,engine='python')
-
-        dt = 40
+        dt = int(dt_in_seconds / cadence) # change dt to lines rather than seconds
 
     #----------------------------------------------------------------------------------------------------
 
-    elif( sc_name == "Geotail" ):
+    else: #Geotail's magnetometric data requires Bz offset correction
 
-        #Geotail's magnetometric data comes with 60 second cadence
-
-        B = pd.read_csv(B_file, skiprows=42, skipfooter=4, parse_dates=[['date','time']], names=['date','time','Bmag','Bx','By','Bz'],delimiter=r"\s+",dayfirst=True,engine='python')
+        B = pd.read_csv(B_file, skiprows=B_firstline, skipfooter=4, parse_dates=[['date','time']], names=['date','time','Bmag','Bx','By','Bz'],delimiter=r"\s+",dayfirst=True,engine='python')
 
         #Modification due to geotail's magnetometric data's format:
         B['Bmag'] = 0.1*B['Bmag']
@@ -969,29 +975,14 @@ if __name__ == "__main__":
 
         B = offset_correction(B,date_correction)
 
-        dt = 3
+        dt_in_seconds = np.round((Rx * 6370 )/ V_c, 0) # change Rx to km
 
-    #----------------------------------------------------------------------------------------------------
-
-    elif( sc_name == "Themisb" ):
-
-        #THEMISB's magnetometric data comes with 3 second cadence
-    
-        B = pd.read_csv(B_file, skiprows=64, skipfooter=4, parse_dates=[['date','time']], names=['date','time','Bmag','Bx','By','Bz'],delimiter=r"\s+",dayfirst=True,engine='python')    
-
-        dt = 378
-
-    #----------------------------------------------------------------------------------------------------
-
-    else:
-
-        errormsg = "Spacecraft not recognized!"
-        raise ValueError(errormsg)
+        dt = int(dt_in_seconds / cadence) # change dt to lines rather than seconds
 
     #----------------------------------------------------------------------------------------------------
 
     #Finally, no matter what spacecraft, we use OMNI data for solar wind and plasma values:
-    P = pd.read_csv(P_file, skiprows=90, skipfooter=4, parse_dates=[['date','time']], names=['date','time','B_bs','Vx','Vy','Vz','n_bs'],delimiter=r"\s+",dayfirst=True,engine='python')
+    P = pd.read_csv(P_file, skiprows=P_firstline, skipfooter=4, parse_dates=[['date','time']], names=['date','time','B_bs','Vx','Vy','Vz','n_bs'],delimiter=r"\s+",dayfirst=True,engine='python')
 
     '''
     ===============================USER NOTICE=========================================================
@@ -1032,6 +1023,9 @@ if __name__ == "__main__":
     B['Bx']   = B.Bx.rolling(window=dt, min_periods=1).mean()
     B['By']   = B.By.rolling(window=dt, min_periods=1).mean()
     B['Bz']   = B.Bz.rolling(window=dt, min_periods=1).mean()
+
+    #Rolling window is not centered due to the fact that we do not want any values from the downstream
+    #of the shock to influence the values used in this analysis.
 
     #=======================================================================================================
 
